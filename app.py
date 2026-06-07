@@ -15,6 +15,8 @@ from database import (init_db, add_spectrum, delete_spectrum,
 from mcr_engine import (preprocess, detect_components, run_mcr_als,
                         batch_match, consensus_label, interpolate_spectrum,
                         apply_window)
+from cos2d import (compute_2dcos, find_crosspeaks, apply_nodas_rules,
+                   PERTURBATION_PRESETS)
 
 # ── Page config ───────────────────────────────────────────────
 st.set_page_config(
@@ -135,6 +137,7 @@ tab_labels = (
     [t("📂 Input Data","📂 Input Data"),
      t("🔬 Analisis MCR","🔬 MCR Analysis"),
      t("🔍 Identifikasi","🔍 Identification"),
+     t("📈 2D-COS","📈 2D-COS"),
      t("📚 Library","📚 Library"),
      t("⚙️ Admin","⚙️ Admin"),
      t("📊 Laporan","📊 Report")]
@@ -142,6 +145,7 @@ tab_labels = (
     [t("📂 Input Data","📂 Input Data"),
      t("🔬 Analisis MCR","🔬 MCR Analysis"),
      t("🔍 Identifikasi","🔍 Identification"),
+     t("📈 2D-COS","📈 2D-COS"),
      t("📊 Laporan","📊 Report")]
 )
 
@@ -149,9 +153,10 @@ tabs = st.tabs(tab_labels)
 tab_input = tabs[0]
 tab_mcr   = tabs[1]
 tab_match = tabs[2]
-tab_lib   = tabs[3] if is_admin() else None
-tab_admin = tabs[4] if is_admin() else None
-tab_rep   = tabs[5] if is_admin() else tabs[3]
+tab_cos   = tabs[3]
+tab_lib   = tabs[4] if is_admin() else None
+tab_admin = tabs[5] if is_admin() else None
+tab_rep   = tabs[6] if is_admin() else tabs[4]
 
 # ════════════════════════════════════════════════════════════════
 # TAB 1 — INPUT DATA
@@ -607,7 +612,307 @@ with tab_match:
                             """, unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════════
-# TAB 4 — LIBRARY (ADMIN ONLY)
+
+# ════════════════════════════════════════════════════════════════
+# TAB 4 — 2D-COS
+# ════════════════════════════════════════════════════════════════
+with tab_cos:
+    if "spectra" not in st.session_state:
+        st.info(t("Upload data spektra di tab Input Data terlebih dahulu.",
+                  "Please upload spectral data in the Input Data tab first."))
+    else:
+        wn_cos  = st.session_state["wavenumber"]
+        D_cos   = st.session_state["spectra"]   # shape: n_points × n_spectra
+        D_input = D_cos.T                        # shape: n_spectra × n_points (m × n)
+
+        st.markdown(f'<p class="sec-hdr">{t("Pengaturan perturbasi","Perturbation settings")}</p>',
+                    unsafe_allow_html=True)
+
+        # Perturbation type
+        perturb_options = list(PERTURBATION_PRESETS.keys())
+        col_p1, col_p2 = st.columns(2)
+        perturb_type = col_p1.selectbox(
+            t("Jenis perturbasi","Perturbation type"), perturb_options
+        )
+        preset = PERTURBATION_PRESETS[perturb_type]
+        perturb_unit = col_p2.text_input(
+            t("Satuan (bisa diubah)","Unit (editable)"),
+            value=preset["unit"]
+        )
+
+        # Custom perturbation label if needed
+        if "Lainnya" in perturb_type or "Other" in perturb_type:
+            perturb_name = st.text_input(
+                t("Nama perturbasi","Perturbation name"),
+                placeholder=t("mis. Kelembaban, Tegangan, ...","e.g. Humidity, Voltage, ...")
+            )
+        else:
+            perturb_name = perturb_type.split("/")[0].strip()
+
+        # Perturbation values
+        n_steps = D_input.shape[0]
+        st.markdown(f'<p class="sec-hdr">{t("Nilai perturbasi","Perturbation values")}</p>',
+                    unsafe_allow_html=True)
+        st.caption(t(
+            f"Masukkan {n_steps} nilai perturbasi (satu per baris atau dipisah koma)",
+            f"Enter {n_steps} perturbation values (one per line or comma-separated)"
+        ))
+
+        default_vals = ", ".join([str(i+1) for i in range(n_steps)])
+        perturb_input = st.text_area(
+            t("Nilai perturbasi","Perturbation values"),
+            value=default_vals, height=68,
+            label_visibility="collapsed"
+        )
+        try:
+            perturb_vals = [float(x.strip()) for x in
+                            perturb_input.replace("\n",",").split(",") if x.strip()]
+        except ValueError:
+            perturb_vals = list(range(1, n_steps + 1))
+
+        # Window settings
+        st.markdown(f'<p class="sec-hdr">{t("Rentang wavenumber","Wavenumber range")}</p>',
+                    unsafe_allow_html=True)
+        wn_arr = np.array(wn_cos)
+        cw1, cw2, cw3 = st.columns(3)
+        cos_window = cw1.selectbox(
+            t("Mode","Mode"),
+            [t("Full range","Full range"),
+             t("Fingerprint (400–1800 cm⁻¹)","Fingerprint (400–1800 cm⁻¹)"),
+             t("Custom","Custom")]
+        )
+        cos_wmin = cw2.number_input("Min (cm⁻¹)", value=400, step=50,
+                                    disabled="Custom" not in cos_window)
+        cos_wmax = cw3.number_input("Max (cm⁻¹)", value=1800, step=50,
+                                    disabled="Custom" not in cos_window)
+
+        if "Fingerprint" in cos_window:
+            wmin_c, wmax_c = 400, 1800
+        elif "Custom" in cos_window:
+            wmin_c, wmax_c = cos_wmin, cos_wmax
+        else:
+            wmin_c, wmax_c = None, None
+
+        # Colorscale
+        cscale = st.selectbox(
+            t("Skema warna","Color scheme"),
+            ["RdBu_r","RdYlBu_r","Spectral_r","Picnic","Portland","Jet"],
+            index=0
+        )
+
+        # Run 2D-COS
+        if st.button(t("▶ Jalankan 2D-COS","▶ Run 2D-COS"), use_container_width=True):
+            with st.spinner(t("Menghitung 2D-COS...","Computing 2D-COS...")):
+                result = compute_2dcos(D_input, wn_cos, wmin_c, wmax_c)
+                if result is None:
+                    st.error(t("Data tidak cukup untuk 2D-COS (min 3 spektra, 4 titik wavenumber).",
+                               "Insufficient data for 2D-COS (min 3 spectra, 4 wavenumber points)."))
+                else:
+                    st.session_state["cos2d_result"] = result
+                    st.session_state["cos2d_perturb"] = perturb_vals
+                    st.session_state["cos2d_unit"] = perturb_unit
+                    st.session_state["cos2d_name"] = perturb_name
+                    st.success(t(
+                        f"✅ 2D-COS selesai — {result['n_steps']} spektra · {result['n_points']} titik wavenumber",
+                        f"✅ 2D-COS complete — {result['n_steps']} spectra · {result['n_points']} wavenumber points"
+                    ))
+
+        # Display results
+        if "cos2d_result" in st.session_state:
+            res    = st.session_state["cos2d_result"]
+            p_vals = st.session_state["cos2d_perturb"]
+            p_unit = st.session_state["cos2d_unit"]
+            p_name = st.session_state["cos2d_name"]
+            wn_r   = res["wn"]
+            Phi    = res["Phi"]
+            Psi    = res["Psi"]
+            Auto   = res["autopower"]
+
+            # ── Metrics ──────────────────────────────────────────
+            m1, m2, m3 = st.columns(3)
+            m1.markdown(f'<div class="metric-card"><div class="metric-value">{res["n_steps"]}</div>' +
+                        f'<div class="metric-label">{t("Langkah perturbasi","Perturbation steps")}</div></div>',
+                        unsafe_allow_html=True)
+            m2.markdown(f'<div class="metric-card"><div class="metric-value">{res["n_points"]}</div>' +
+                        f'<div class="metric-label">{t("Titik wavenumber","Wavenumber points")}</div></div>',
+                        unsafe_allow_html=True)
+            m3.markdown(f'<div class="metric-card"><div class="metric-value">{Auto.max():.4f}</div>' +
+                        f'<div class="metric-label">{t("Autopower maks","Max autopower")}</div></div>',
+                        unsafe_allow_html=True)
+
+            # ── Dynamic spectra ───────────────────────────────────
+            st.markdown(f'<p class="sec-hdr">{t("Spektra dinamis (Ã)","Dynamic spectra (Ã)")}</p>',
+                        unsafe_allow_html=True)
+            fig_dyn = go.Figure()
+            colors_d = px.colors.qualitative.Set2
+            for i, row in enumerate(res["D_dyn"]):
+                lbl = f"{p_name} {p_vals[i] if i < len(p_vals) else i+1} {p_unit}"
+                fig_dyn.add_trace(go.Scatter(
+                    x=wn_r, y=row, name=lbl, mode="lines",
+                    line=dict(width=1.2, color=colors_d[i % len(colors_d)])
+                ))
+            fig_dyn.update_layout(
+                template="plotly_dark", paper_bgcolor="#0f1117", plot_bgcolor="#0f1117",
+                xaxis=dict(autorange="reversed", gridcolor="#1e293b",
+                           title="Wavenumber (cm⁻¹)"),
+                yaxis=dict(gridcolor="#1e293b", title=t("Intensitas dinamis","Dynamic intensity")),
+                legend=dict(bgcolor="#161b27", font=dict(size=10)),
+                height=280, margin=dict(l=20,r=20,t=10,b=40)
+            )
+            st.plotly_chart(fig_dyn, use_container_width=True)
+
+            # ── Autopower spectrum ────────────────────────────────
+            st.markdown(f'<p class="sec-hdr">{t("Autopower spectrum — puncak aktif","Autopower spectrum — active bands")}</p>',
+                        unsafe_allow_html=True)
+            fig_auto = go.Figure()
+            fig_auto.add_trace(go.Scatter(
+                x=wn_r, y=Auto, mode="lines",
+                line=dict(color="#7dd3fc", width=1.8),
+                fill="tozeroy", fillcolor="rgba(125,211,252,0.08)"
+            ))
+            fig_auto.update_layout(
+                template="plotly_dark", paper_bgcolor="#0f1117", plot_bgcolor="#0f1117",
+                xaxis=dict(autorange="reversed", gridcolor="#1e293b",
+                           title="Wavenumber (cm⁻¹)"),
+                yaxis=dict(gridcolor="#1e293b", title="Autopower"),
+                height=220, margin=dict(l=20,r=20,t=10,b=40)
+            )
+            st.plotly_chart(fig_auto, use_container_width=True)
+
+            # ── Synchronous & Asynchronous maps ──────────────────
+            st.markdown(f'<p class="sec-hdr">{t("Peta 2D-COS","2D-COS maps")}</p>',
+                        unsafe_allow_html=True)
+
+            col_syn, col_asyn = st.columns(2)
+
+            # Synchronous
+            with col_syn:
+                st.caption(t("Synchronous (Φ) — perubahan searah",
+                              "Synchronous (Φ) — in-phase changes"))
+                vmax_phi = float(np.abs(Phi).max())
+                fig_phi = go.Figure(go.Heatmap(
+                    z=Phi, x=wn_r, y=wn_r,
+                    colorscale=cscale,
+                    zmid=0, zmin=-vmax_phi, zmax=vmax_phi,
+                    colorbar=dict(title="Φ", thickness=12, len=0.8)
+                ))
+                fig_phi.update_layout(
+                    template="plotly_dark", paper_bgcolor="#0f1117",
+                    plot_bgcolor="#0f1117",
+                    xaxis=dict(autorange="reversed", gridcolor="#1e293b",
+                               title="ν₁ (cm⁻¹)"),
+                    yaxis=dict(autorange="reversed", gridcolor="#1e293b",
+                               title="ν₂ (cm⁻¹)"),
+                    height=420, margin=dict(l=20,r=20,t=10,b=40)
+                )
+                st.plotly_chart(fig_phi, use_container_width=True)
+
+            # Asynchronous
+            with col_asyn:
+                st.caption(t("Asynchronous (Ψ) — urutan kejadian",
+                              "Asynchronous (Ψ) — sequential order"))
+                vmax_psi = float(np.abs(Psi).max())
+                fig_psi = go.Figure(go.Heatmap(
+                    z=Psi, x=wn_r, y=wn_r,
+                    colorscale=cscale,
+                    zmid=0, zmin=-vmax_psi, zmax=vmax_psi,
+                    colorbar=dict(title="Ψ", thickness=12, len=0.8)
+                ))
+                fig_psi.update_layout(
+                    template="plotly_dark", paper_bgcolor="#0f1117",
+                    plot_bgcolor="#0f1117",
+                    xaxis=dict(autorange="reversed", gridcolor="#1e293b",
+                               title="ν₁ (cm⁻¹)"),
+                    yaxis=dict(autorange="reversed", gridcolor="#1e293b",
+                               title="ν₂ (cm⁻¹)"),
+                    height=420, margin=dict(l=20,r=20,t=10,b=40)
+                )
+                st.plotly_chart(fig_psi, use_container_width=True)
+
+            # ── Cross-peak analysis & Noda's rules ───────────────
+            st.markdown(f'<p class="sec-hdr">{t("Analisis cross-peak & Noda's Rules","Cross-peak analysis & Noda's Rules")}</p>',
+                        unsafe_allow_html=True)
+
+            cp_cols = st.columns(2)
+            thr_phi = cp_cols[0].number_input(
+                t("Threshold |Φ| minimum","Threshold |Φ| minimum"),
+                min_value=0.0, value=0.0, step=0.0001, format="%.4f"
+            )
+            top_cp = cp_cols[1].number_input(
+                t("Tampilkan Top-N cross-peak","Show Top-N cross-peaks"),
+                min_value=5, max_value=50, value=15
+            )
+
+            crosspeaks = find_crosspeaks(Phi, Psi, wn_r,
+                                         threshold_phi=thr_phi,
+                                         threshold_psi=0.0,
+                                         top_n=int(top_cp))
+
+            if crosspeaks:
+                for cp in crosspeaks:
+                    phi_color = "#22c55e" if cp["phi"] > 0 else "#ef4444"
+                    psi_color = "#22c55e" if cp["psi"] > 0 else "#ef4444"
+                    st.markdown(f"""
+                    <div style="background:#161b27;border:1px solid #2a3142;
+                      border-radius:8px;padding:0.65rem 1rem;margin-bottom:5px;
+                      font-size:0.82rem;">
+                      <span style="color:#e2e8f0;font-weight:500;">
+                        {cp["wn1"]:.1f} cm⁻¹ &nbsp;↔&nbsp; {cp["wn2"]:.1f} cm⁻¹
+                      </span>
+                      &nbsp;&nbsp;
+                      <span style="color:{phi_color};font-family:monospace;">
+                        Φ={cp["phi"]:+.4f}
+                      </span>
+                      &nbsp;
+                      <span style="color:{psi_color};font-family:monospace;">
+                        Ψ={cp["psi"]:+.4f}
+                      </span>
+                      <br>
+                      <span style="color:#7dd3fc;">⚖ {cp["noda_rule"]}</span>
+                      &nbsp;·&nbsp;
+                      <span style="color:#94a3b8;">
+                        {t("Urutan:","Order:")} {cp["order"]}
+                      </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # Export cross-peaks
+                import pandas as pd
+                df_cp = pd.DataFrame(crosspeaks)
+                df_cp = df_cp[["wn1","wn2","phi","psi","sign_phi","sign_psi",
+                               "noda_rule","order"]]
+                df_cp.columns = ["ν₁ (cm⁻¹)","ν₂ (cm⁻¹)","Φ","Ψ",
+                                  "sign(Φ)","sign(Ψ)","Noda Rule","Sequential Order"]
+                st.download_button(
+                    t("⬇ Export cross-peaks (CSV)","⬇ Export cross-peaks (CSV)"),
+                    df_cp.to_csv(index=False),
+                    "crosspeaks_2dcos.csv", "text/csv"
+                )
+            else:
+                st.info(t("Tidak ada cross-peak signifikan dengan threshold ini.",
+                           "No significant cross-peaks at this threshold."))
+
+            # Export maps
+            st.markdown(f'<p class="sec-hdr">{t("Export peta 2D-COS","Export 2D-COS maps")}</p>',
+                        unsafe_allow_html=True)
+            ex1, ex2 = st.columns(2)
+            import pandas as pd
+            df_phi = pd.DataFrame(Phi, index=wn_r, columns=wn_r)
+            df_phi.index.name = "Wavenumber"
+            df_psi = pd.DataFrame(Psi, index=wn_r, columns=wn_r)
+            df_psi.index.name = "Wavenumber"
+            ex1.download_button(
+                t("⬇ Synchronous map (CSV)","⬇ Synchronous map (CSV)"),
+                df_phi.to_csv(),
+                "synchronous_map.csv", "text/csv", use_container_width=True
+            )
+            ex2.download_button(
+                t("⬇ Asynchronous map (CSV)","⬇ Asynchronous map (CSV)"),
+                df_psi.to_csv(),
+                "asynchronous_map.csv", "text/csv", use_container_width=True
+            )
+
+# TAB 5 — LIBRARY (ADMIN ONLY)
 # ════════════════════════════════════════════════════════════════
 if is_admin() and tab_lib:
     with tab_lib:
