@@ -520,11 +520,18 @@ with tab_match:
                                 annotation_text="window",
                                 annotation_position="top left"
                             )
+                            # Zoom x-axis to selected window range + 5% padding
+                            pad = (wmax_show - wmin_show) * 0.05
+                            x_lo = wmin_show - pad   # lower wavenumber
+                            x_hi = wmax_show + pad   # higher wavenumber
                             fig_ov.update_layout(
                                 template="plotly_dark", paper_bgcolor="#0f1117",
                                 plot_bgcolor="#0f1117",
-                                xaxis=dict(autorange="reversed", gridcolor="#1e293b",
-                                           title="Wavenumber (cm⁻¹)"),
+                                xaxis=dict(
+                                    range=[x_hi, x_lo],  # reversed (high→low FTIR convention)
+                                    gridcolor="#1e293b",
+                                    title="Wavenumber (cm⁻¹)"
+                                ),
                                 yaxis=dict(gridcolor="#1e293b",
                                            title=t("Intensitas (norm.)","Intensity (norm.)")),
                                 legend=dict(bgcolor="#161b27"),
