@@ -15,7 +15,7 @@ def preprocess(spectra_matrix, wavenumber,
             proc[:, i] -= proc[:, i].min()
     if do_norm:
         for i in range(proc.shape[1]):
-            area = np.trapz(np.abs(proc[:, i]), wavenumber)
+            area = np.trapezoid(np.abs(proc[:, i]), wavenumber) if hasattr(np, 'trapezoid') else np.trapz(np.abs(proc[:, i]), wavenumber)
             if area > 0:
                 proc[:, i] /= area
     return proc
