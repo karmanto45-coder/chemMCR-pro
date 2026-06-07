@@ -29,6 +29,13 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
 html,body,[class*="css"]{font-family:'DM Sans',sans-serif;}
+
+/* Hide GitHub link, footer, deploy button */
+#MainMenu {visibility:hidden;}
+footer {visibility:hidden;}
+[data-testid="stToolbar"] {visibility:hidden;}
+a[href*="github"] {display:none !important;}
+.stDeployButton {display:none !important;}
 .app-header{background:linear-gradient(135deg,#0f1117,#161b27);
   border:1px solid #2a3142;border-radius:12px;padding:1.2rem 1.8rem;margin-bottom:1.2rem;}
 .app-title{font-family:'DM Mono',monospace;font-size:1.5rem;font-weight:500;

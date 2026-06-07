@@ -51,20 +51,81 @@ def logout():
 def render_login():
     st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
     html,body,[class*="css"]{font-family:'DM Sans',sans-serif;}
-    .login-wrap{max-width:400px;margin:4rem auto 0;}
-    .login-logo{font-family:'DM Mono',monospace;font-size:1.8rem;font-weight:500;
-        color:#e2e8f0;margin:0;letter-spacing:-1px;}
-    .login-sub{font-size:0.85rem;color:#64748b;margin:4px 0 2rem;}
-    .login-version{display:inline-block;font-size:0.7rem;background:#1e293b;
-        color:#7dd3fc;padding:2px 8px;border-radius:4px;margin-bottom:1.5rem;
-        font-family:'DM Mono',monospace;}
+
+    /* Hide GitHub link, footer, and deploy button */
+    #MainMenu {visibility:hidden;}
+    footer {visibility:hidden;}
+    [data-testid="stToolbar"] {visibility:hidden;}
+    a[href*="github"] {display:none !important;}
+    .stDeployButton {display:none !important;}
+
+    /* Full page dark background */
+    .stApp { background: #080d14; }
+    [data-testid="stSidebar"] { display: none; }
+
+    /* Login card */
+    .login-outer {
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        min-height: 88vh; padding: 2rem;
+    }
+    .login-card {
+        background: linear-gradient(145deg, #0f1520, #141e2e);
+        border: 1px solid #1e3a5f;
+        border-radius: 20px;
+        padding: 2.8rem 2.5rem 2rem;
+        width: 100%; max-width: 420px;
+        box-shadow: 0 0 60px rgba(56,139,253,0.08), 0 20px 40px rgba(0,0,0,0.4);
+    }
+
+    /* Logo area */
+    .logo-icon {
+        font-size: 2.8rem; text-align: center;
+        margin-bottom: 0.5rem; line-height: 1;
+    }
+    .login-logo {
+        font-family: 'DM Mono', monospace;
+        font-size: 2rem; font-weight: 500;
+        text-align: center; margin: 0;
+        letter-spacing: -1px;
+        background: linear-gradient(135deg, #7dd3fc, #3b82f6, #818cf8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .login-sub {
+        font-size: 0.78rem; color: #475569;
+        text-align: center; margin: 6px 0 1.5rem;
+        letter-spacing: 0.03em;
+    }
+    .login-version {
+        display: block; text-align: center;
+        font-size: 0.68rem; background: #0d1829;
+        border: 1px solid #1e3a5f;
+        color: #7dd3fc; padding: 3px 12px;
+        border-radius: 20px; margin: 0 auto 1.8rem;
+        font-family: 'DM Mono', monospace;
+        width: fit-content;
+    }
+    .login-divider {
+        border: none; border-top: 1px solid #1e293b;
+        margin: 1.5rem 0 0.5rem;
+    }
+    .login-footer {
+        text-align: center; font-size: 0.72rem;
+        color: #334155; margin-top: 1.2rem;
+    }
     </style>
-    <div class="login-wrap">
-      <p class="login-logo">SpectraID Pro</p>
-      <p class="login-sub">Multivariate Curve Resolution · Spectral Identification</p>
-      <span class="login-version">v2.0 · Professional Edition</span>
+
+    <div class="login-outer">
+      <div class="login-card">
+        <div class="logo-icon">🔬</div>
+        <p class="login-logo">SpectraID Pro</p>
+        <p class="login-sub">MULTIVARIATE CURVE RESOLUTION &nbsp;·&nbsp; SPECTRAL IDENTIFICATION</p>
+        <span class="login-version">v2.0 &nbsp;·&nbsp; Professional Edition</span>
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -101,3 +162,9 @@ def render_login():
                         st.error("Invalid username or password." if is_en else
                                  "Username atau kata sandi salah.")
 
+            st.markdown("""
+            <div style='text-align:center;margin-top:1rem;font-size:0.75rem;color:#475569;'>
+            Default: admin / admin123<br>
+            Ganti password setelah login pertama
+            </div>
+            """, unsafe_allow_html=True)
