@@ -128,6 +128,65 @@ def render_login():
       </div>
     </div>
     """, unsafe_allow_html=True)
+    # Inject additional CSS to force logo visibility
+    st.markdown("""
+    <style>
+    /* Force SpectraID Pro text to be clearly visible */
+    .login-logo {
+        font-family: 'DM Mono', monospace !important;
+        font-size: 2.2rem !important;
+        font-weight: 600 !important;
+        text-align: center !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        background: none !important;
+        margin: 0.3rem 0 !important;
+        text-shadow: 0 0 30px rgba(125,211,252,0.5),
+                     0 0 60px rgba(59,130,246,0.3);
+        letter-spacing: -0.5px !important;
+    }
+    .logo-icon {
+        font-size: 3rem !important;
+        text-align: center !important;
+        display: block !important;
+        margin-bottom: 0.3rem !important;
+    }
+    .login-sub {
+        color: #64748b !important;
+        font-size: 0.72rem !important;
+        text-align: center !important;
+        letter-spacing: 0.08em !important;
+        margin: 0.4rem 0 1rem !important;
+    }
+    .login-version {
+        display: block !important;
+        text-align: center !important;
+        font-size: 0.68rem !important;
+        background: #0d1829 !important;
+        border: 1px solid #1e3a5f !important;
+        color: #7dd3fc !important;
+        padding: 3px 14px !important;
+        border-radius: 20px !important;
+        margin: 0 auto 1.5rem !important;
+        font-family: 'DM Mono', monospace !important;
+        width: fit-content !important;
+    }
+    .login-card {
+        background: linear-gradient(145deg, #0f1520, #141e2e) !important;
+        border: 1px solid #1e3a5f !important;
+        border-radius: 20px !important;
+        padding: 2.5rem 2rem 1.5rem !important;
+        box-shadow: 0 0 60px rgba(56,139,253,0.1),
+                    0 20px 40px rgba(0,0,0,0.5) !important;
+    }
+    .login-outer {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        padding-top: 1rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     with st.container():
         col1, col2, col3 = st.columns([1, 2, 1])
