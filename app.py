@@ -417,6 +417,29 @@ with tab_match:
             thresh_cos = t2.slider(t("Threshold cosine","Threshold cosine"), 0.70, 1.00, 0.95, 0.01)
             thresh_hqi = t3.slider(t("Threshold HQI (%)","Threshold HQI (%)"), 50.0, 100.0, 90.25, 0.25)
 
+            # Grid alignment settings
+            st.markdown(f'<p class="sec-hdr">{t("Pengaturan penyesuaian grid","Grid alignment settings")}</p>',
+                        unsafe_allow_html=True)
+            g1, g2 = st.columns(2)
+            interp_method = g1.selectbox(
+                t("Metode interpolasi","Interpolation method"),
+                ["cubic", "linear"],
+                help=t("Cubic: lebih akurat untuk puncak tajam. Linear: lebih cepat.",
+                       "Cubic: more accurate for sharp peaks. Linear: faster.")
+            )
+            grid_mode = g2.selectbox(
+                t("Interval grid bersama","Common grid interval"),
+                [t("Otomatis (interval terkecil)","Auto (finest interval)"),
+                 t("Manual","Manual")],
+            )
+            if t("Manual","Manual") in grid_mode:
+                grid_interval = st.number_input(
+                    t("Interval grid (cm⁻¹)","Grid interval (cm⁻¹)"),
+                    min_value=0.1, max_value=10.0, value=1.0, step=0.1
+                )
+            else:
+                grid_interval = "auto"
+
             # Window mode key
             if "Fingerprint" in window_mode:
                 wmode_key = "fingerprint"
@@ -431,14 +454,16 @@ with tab_match:
 
             wn_arr = np.array(wn)
             n_pts_win = int(np.sum((wn_arr >= wmin_show) & (wn_arr <= wmax_show)))
+            wn_interval = float(np.median(np.diff(np.sort(wn_arr)))) if len(wn_arr) > 1 else 1.0
             st.markdown(
                 f'<span class="window-chip">{wmin_show:.0f}–{wmax_show:.0f} cm⁻¹</span>'
+                f'<span class="window-chip">Δ {wn_interval:.4f} cm⁻¹</span>'
                 f'<span style="font-size:0.8rem;color:#475569">{n_pts_win} '
-                f'{t("titik data dalam window","data points in window")}</span>',
+                f'{t("titik · interval MCR","pts · MCR interval")}</span>',
                 unsafe_allow_html=True
             )
 
-            # Load library once
+            # Run identification
             if st.button(t("🔍 Jalankan identifikasi","🔍 Run identification"),
                          use_container_width=True):
                 with st.spinner(t(f"Mencocokkan vs {n_lib:,} spektra library...",
@@ -448,7 +473,8 @@ with tab_match:
                     for i in range(nc):
                         res = batch_match(
                             S[i], wn, library_entries,
-                            wmode_key, wmin_show, wmax_show, int(top_n)
+                            wmode_key, wmin_show, wmax_show,
+                            int(top_n), grid_interval, interp_method
                         )
                         all_results.append(res)
                     st.session_state["match_results"] = all_results
@@ -507,6 +533,35 @@ with tab_match:
                             st.plotly_chart(fig_ov, use_container_width=True)
 
                         # Ranking cards
+                        # Show grid info for top result
+                        if results:
+                            top_r = results[0]
+                            grid_warn = top_r.get("grid_warning")
+                            ov_w = top_r.get("overlap_width", 0)
+                            n_pts = top_r.get("n_common_points", 0)
+                            gi   = top_r.get("grid_interval", 0)
+                            i_q  = top_r.get("interval_query", 0)
+                            i_l  = top_r.get("interval_lib", 0)
+                            im   = top_r.get("interp_method","cubic")
+                            grid_html = (
+                                f'<div style="background:#0f1829;border:1px solid #1e3a5f;'
+                                f'border-radius:8px;padding:8px 14px;margin-bottom:10px;'
+                                f'font-family:monospace;font-size:0.76rem;color:#7dd3fc;">'
+                                f'<b>{t("Info penyesuaian grid","Grid alignment info")}:</b> '
+                                f'Overlap {ov_w:.1f} cm⁻¹ · '
+                                f'Grid bersama {gi:.4f} cm⁻¹ · {n_pts} titik · '
+                                f'Interpolasi: {im} · '
+                                f'ΔMCR {i_q:.4f} cm⁻¹ · Δlib {i_l:.4f} cm⁻¹'
+                                f'</div>'
+                            )
+                            if grid_warn:
+                                grid_html += (
+                                    f'<div style="background:#1a0f00;border:1px solid #f97316;'
+                                    f'border-radius:8px;padding:6px 12px;margin-bottom:10px;'
+                                    f'font-size:0.76rem;color:#f97316;">⚠️ {grid_warn}</div>'
+                                )
+                            st.markdown(grid_html, unsafe_allow_html=True)
+
                         for rank, r in enumerate(results, 1):
                             clabel, cmsg = consensus_label(r["cosine"], r["hqi"],
                                                            thresh_cos, thresh_hqi)
