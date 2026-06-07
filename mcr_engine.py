@@ -204,6 +204,12 @@ def hqi_score(a, b):
 def batch_match(query_spec, query_wn, library_entries,
                 window_mode, wmin, wmax, top_n=10,
                 grid_interval="auto", interp_method="cubic"):
+    # Normalise grid_interval
+    if grid_interval != "auto":
+        try:
+            grid_interval = float(grid_interval)
+        except (TypeError, ValueError):
+            grid_interval = "auto"
     """
     Match one query spectrum against all library entries using
     common-grid interpolation (cubic spline by default).
