@@ -210,17 +210,6 @@ def batch_match(query_spec, query_wn, library_entries,
             grid_interval = float(grid_interval)
         except (TypeError, ValueError):
             grid_interval = "auto"
-    """
-    Match one query spectrum against all library entries using
-    common-grid interpolation (cubic spline by default).
-
-    Each pair (query, library) gets its own common grid built
-    from their overlap — handles different intervals and ranges
-    automatically.
-
-    Returns top_n results sorted by cosine descending, each with
-    grid alignment metadata.
-    """
     # Apply window to query
     wn_q, sp_q = apply_window(query_wn, query_spec, window_mode, wmin, wmax)
     if len(wn_q) < 5:
