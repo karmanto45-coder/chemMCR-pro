@@ -237,8 +237,14 @@ with tab_input:
                 xaxis=dict(autorange="reversed", gridcolor="#1e293b",
                            title=t("Wavenumber (cm⁻¹)","Wavenumber (cm⁻¹)")),
                 yaxis=dict(gridcolor="#1e293b", title="Absorbance"),
-                legend=dict(bgcolor="#161b27"), height=370,
-                margin=dict(l=20,r=20,t=20,b=40)
+                legend=dict(
+                    title=dict(text=t("Spektra Sampel","Sample Spectra"),
+                               font=dict(size=11, color="#7dd3fc")),
+                    bgcolor="#161b27", bordercolor="#2a3142", borderwidth=1,
+                    font=dict(size=11, color="#e2e8f0"),
+                    orientation="v", x=1.02, xanchor="left", y=1
+                ),
+                height=370, margin=dict(l=20,r=160,t=20,b=40)
             )
             st.plotly_chart(fig, use_container_width=True)
 
@@ -356,8 +362,14 @@ with tab_mcr:
                 xaxis=dict(autorange="reversed", gridcolor="#1e293b",
                            title="Wavenumber (cm⁻¹)"),
                 yaxis=dict(gridcolor="#1e293b", title=t("Intensitas","Intensity")),
-                legend=dict(bgcolor="#161b27"), height=340,
-                margin=dict(l=20,r=20,t=20,b=40)
+                legend=dict(
+                    title=dict(text=t("Komponen MCR","MCR Components"),
+                               font=dict(size=11, color="#7dd3fc")),
+                    bgcolor="#161b27", bordercolor="#2a3142", borderwidth=1,
+                    font=dict(size=11, color="#e2e8f0"),
+                    orientation="v", x=1.02, xanchor="left", y=1
+                ),
+                height=340, margin=dict(l=20,r=160,t=20,b=40)
             )
             st.plotly_chart(fig_s, use_container_width=True)
 
@@ -376,8 +388,14 @@ with tab_mcr:
                 paper_bgcolor="#0f1117", plot_bgcolor="#0f1117",
                 xaxis=dict(gridcolor="#1e293b", title=t("Sampel","Sample")),
                 yaxis=dict(gridcolor="#1e293b", title=t("Kontribusi relatif","Relative contribution")),
-                legend=dict(bgcolor="#161b27"), height=300,
-                margin=dict(l=20,r=20,t=20,b=40)
+                legend=dict(
+                    title=dict(text=t("Komponen","Components"),
+                               font=dict(size=11, color="#7dd3fc")),
+                    bgcolor="#161b27", bordercolor="#2a3142", borderwidth=1,
+                    font=dict(size=11, color="#e2e8f0"),
+                    orientation="v", x=1.02, xanchor="left", y=1
+                ),
+                height=300, margin=dict(l=20,r=160,t=20,b=40)
             )
             st.plotly_chart(fig_c, use_container_width=True)
 
@@ -546,8 +564,14 @@ with tab_match:
                                 ),
                                 yaxis=dict(gridcolor="#1e293b",
                                            title=t("Intensitas (norm.)","Intensity (norm.)")),
-                                legend=dict(bgcolor="#161b27"),
-                                height=260, margin=dict(l=20,r=20,t=20,b=40)
+                                legend=dict(
+                                    title=dict(text=t("Spektra","Spectra"),
+                                               font=dict(size=10, color="#7dd3fc")),
+                                    bgcolor="#161b27", bordercolor="#2a3142", borderwidth=1,
+                                    font=dict(size=10, color="#e2e8f0"),
+                                    orientation="v", x=1.02, xanchor="left", y=1
+                                ),
+                                height=260, margin=dict(l=20,r=160,t=20,b=40)
                             )
                             st.plotly_chart(fig_ov, use_container_width=True)
 
