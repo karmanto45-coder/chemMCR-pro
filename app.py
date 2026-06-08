@@ -177,6 +177,17 @@ with tab_input:
             "**Column format:**\nCol 1 = wavenumber (cm⁻¹)\nCol 2+ = sample spectra\nMinimum 4 spectra"
         ))
 
+    if not uploaded:
+        # File dihapus → reset semua hasil analisis
+        if st.session_state.get("_uploaded_filename"):
+            for _k in ["wavenumber","spectra","spec_names","_uploaded_filename",
+                       "mcr_C","mcr_S","mcr_lof","mcr_r2","mcr_ncomp",
+                       "mcr_converged","match_results",
+                       "cos2d_result","cos2d_perturb","cos2d_unit","cos2d_name"]:
+                st.session_state.pop(_k, None)
+            st.info(t("File dihapus — semua hasil analisis direset.",
+                      "File removed — all analysis results have been reset."))
+
     if uploaded:
         try:
             name = uploaded.name.lower()
