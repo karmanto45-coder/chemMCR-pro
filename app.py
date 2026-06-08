@@ -316,6 +316,9 @@ with tab_mcr:
                     "mcr_r2": r2, "mcr_ncomp": int(n_comp),
                     "mcr_converged": conv
                 })
+                # Hapus hasil lama agar tidak konflik jika komponen berubah
+                for _key in ["match_results", "cos2d_result", "cos2d_perturb"]:
+                    st.session_state.pop(_key, None)
             conv_msg = t("Konvergen","Converged") if conv else t("Belum konvergen","Not converged")
             st.success(f"✅ {conv_msg} — {len(lof_hist)} {t('iterasi','iterations')} "
                        f"| LOF: {lof_hist[-1]:.4f}% | R²: {r2:.5f}")
@@ -525,7 +528,7 @@ with tab_match:
                         # Overlay plot — top match
                         top = results[0]
                         lib_entry = get_spectrum_by_id(top["id"])
-                        if lib_entry:
+                        if lib_entry and i < len(S):
                             fig_ov = go.Figure()
                             fig_ov.add_trace(go.Scatter(
                                 x=wn, y=S[i],
@@ -690,9 +693,31 @@ with tab_cos:
             label_visibility="collapsed"
         )
         try:
-            perturb_vals = [float(x.strip()) for x in
-                            perturb_input.replace("\n",",").split(",") if x.strip()]
-        except ValueError:
+            # Normalize: handle newlines and semicolons as separators
+            raw    = perturb_input.replace("\n", ",").replace(";", ",")
+            tokens = [x.strip() for x in raw.split(",") if x.strip()]
+            parsed = []
+            for tok in tokens:
+                # Accept both "0.85" and "0,85" as decimal notation
+                try:
+                    parsed.append(float(tok))
+                except ValueError:
+                    try:
+                        parsed.append(float(tok.replace(",", ".")))
+                    except ValueError:
+                        pass
+            perturb_vals = parsed if parsed else list(range(1, n_steps + 1))
+        except Exception:
+            perturb_vals = list(range(1, n_steps + 1))
+
+        # Warn if count mismatch
+        if len(perturb_vals) != n_steps:
+            st.warning(t(
+                f"\u26a0\ufe0f Jumlah nilai perturbasi ({len(perturb_vals)}) tidak sesuai "
+                f"dengan jumlah spektra ({n_steps}). Menggunakan nomor urut otomatis.",
+                f"\u26a0\ufe0f Perturbation values ({len(perturb_vals)}) don't match "
+                f"spectra count ({n_steps}). Using automatic sequence."
+            ))
             perturb_vals = list(range(1, n_steps + 1))
 
         # Window settings
