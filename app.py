@@ -217,14 +217,22 @@ with tab_input:
 
             proc = preprocess(raw_matrix, wavenumber, do_norm, do_smooth, do_baseline)
 
+            # Cek apakah file baru berbeda dari sebelumnya
+            prev_file = st.session_state.get("_uploaded_filename", None)
+            curr_file = uploaded.name + str(uploaded.size)
+            is_new_file = (prev_file != curr_file)
+
             st.session_state["wavenumber"]  = wavenumber
             st.session_state["spectra"]     = proc
             st.session_state["spec_names"]  = list(spec_cols.astype(str))
-            # Hapus semua hasil analisis lama saat data baru diupload
-            for _k in ["mcr_C","mcr_S","mcr_lof","mcr_r2","mcr_ncomp",
-                       "mcr_converged","match_results",
-                       "cos2d_result","cos2d_perturb"]:
-                st.session_state.pop(_k, None)
+            st.session_state["_uploaded_filename"] = curr_file
+
+            # Hanya hapus hasil lama jika file BENAR-BENAR berbeda
+            if is_new_file:
+                for _k in ["mcr_C","mcr_S","mcr_lof","mcr_r2","mcr_ncomp",
+                           "mcr_converged","match_results",
+                           "cos2d_result","cos2d_perturb"]:
+                    st.session_state.pop(_k, None)
 
             # Plot
             st.markdown(f'<p class="sec-hdr">{t("Visualisasi spektra","Spectral visualization")}</p>',
