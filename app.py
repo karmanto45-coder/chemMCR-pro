@@ -632,7 +632,8 @@ with tab_cos:
         perturb_options = list(PERTURBATION_PRESETS.keys())
         col_p1, col_p2 = st.columns(2)
         perturb_type = col_p1.selectbox(
-            t("Jenis perturbasi","Perturbation type"), perturb_options
+            t("Jenis perturbasi","Perturbation type"), perturb_options,
+            key="cos2d_perturb_type"
         )
         preset = PERTURBATION_PRESETS[perturb_type]
         perturb_unit = col_p2.text_input(
@@ -682,9 +683,11 @@ with tab_cos:
              t("Custom","Custom")]
         )
         cos_wmin = cw2.number_input("Min (cm⁻¹)", value=400, step=50,
-                                    disabled="Custom" not in cos_window)
+                                    disabled="Custom" not in cos_window,
+                                    key="cos2d_wmin")
         cos_wmax = cw3.number_input("Max (cm⁻¹)", value=1800, step=50,
-                                    disabled="Custom" not in cos_window)
+                                    disabled="Custom" not in cos_window,
+                                    key="cos2d_wmax")
 
         if "Fingerprint" in cos_window:
             wmin_c, wmax_c = 400, 1800
@@ -697,7 +700,7 @@ with tab_cos:
         cscale = st.selectbox(
             t("Skema warna","Color scheme"),
             ["RdBu_r","RdYlBu_r","Spectral_r","Picnic","Portland","Jet"],
-            index=0
+            index=0, key="cos2d_colorscale"
         )
 
         # Run 2D-COS
@@ -746,18 +749,37 @@ with tab_cos:
             fig_dyn = go.Figure()
             colors_d = px.colors.qualitative.Set2
             for i, row in enumerate(res["D_dyn"]):
-                lbl = f"{p_name} {p_vals[i] if i < len(p_vals) else i+1} {p_unit}"
+                p_val = p_vals[i] if i < len(p_vals) else i + 1
+                lbl = f"{p_name} {p_val} {p_unit}"
                 fig_dyn.add_trace(go.Scatter(
                     x=wn_r, y=row, name=lbl, mode="lines",
-                    line=dict(width=1.2, color=colors_d[i % len(colors_d)])
+                    line=dict(width=1.4, color=colors_d[i % len(colors_d)]),
+                    hovertemplate=(
+                        f"<b>{lbl}</b><br>"
+                        f"Wavenumber: %{{x:.1f}} cm⁻¹<br>"
+                        f"Intensitas dinamis: %{{y:.4f}}<extra></extra>"
+                    )
                 ))
             fig_dyn.update_layout(
                 template="plotly_dark", paper_bgcolor="#0f1117", plot_bgcolor="#0f1117",
                 xaxis=dict(autorange="reversed", gridcolor="#1e293b",
                            title="Wavenumber (cm⁻¹)"),
                 yaxis=dict(gridcolor="#1e293b", title=t("Intensitas dinamis","Dynamic intensity")),
-                legend=dict(bgcolor="#161b27", font=dict(size=10)),
-                height=280, margin=dict(l=20,r=20,t=10,b=40)
+                legend=dict(
+                    bgcolor="#161b27",
+                    bordercolor="#2a3142",
+                    borderwidth=1,
+                    font=dict(size=11, color="#e2e8f0"),
+                    title=dict(
+                        text=f"{p_name} ({p_unit})",
+                        font=dict(size=11, color="#7dd3fc")
+                    ),
+                    orientation="v",
+                    x=1.02, y=1,
+                    xanchor="left"
+                ),
+                height=300,
+                margin=dict(l=20, r=160, t=20, b=40)
             )
             st.plotly_chart(fig_dyn, use_container_width=True)
 
@@ -836,11 +858,13 @@ with tab_cos:
             cp_cols = st.columns(2)
             thr_phi = cp_cols[0].number_input(
                 t("Threshold |Φ| minimum","Threshold |Φ| minimum"),
-                min_value=0.0, value=0.0, step=0.0001, format="%.4f"
+                min_value=0.0, value=0.0, step=0.0001, format="%.4f",
+                key="cos2d_thr_phi"
             )
             top_cp = cp_cols[1].number_input(
                 t("Tampilkan Top-N cross-peak","Show Top-N cross-peaks"),
-                min_value=5, max_value=50, value=15
+                min_value=5, max_value=50, value=15,
+                key="cos2d_top_cp"
             )
 
             crosspeaks = find_crosspeaks(Phi, Psi, wn_r,
