@@ -220,6 +220,11 @@ with tab_input:
             st.session_state["wavenumber"]  = wavenumber
             st.session_state["spectra"]     = proc
             st.session_state["spec_names"]  = list(spec_cols.astype(str))
+            # Hapus semua hasil analisis lama saat data baru diupload
+            for _k in ["mcr_C","mcr_S","mcr_lof","mcr_r2","mcr_ncomp",
+                       "mcr_converged","match_results",
+                       "cos2d_result","cos2d_perturb"]:
+                st.session_state.pop(_k, None)
 
             # Plot
             st.markdown(f'<p class="sec-hdr">{t("Visualisasi spektra","Spectral visualization")}</p>',
@@ -379,6 +384,8 @@ with tab_mcr:
             st.markdown(f'<p class="sec-hdr">{t("Profil konsentrasi","Concentration profiles")}</p>',
                         unsafe_allow_html=True)
             snames = st.session_state.get("spec_names", [f"S{i+1}" for i in range(C_res.shape[0])])
+            if len(snames) != C_res.shape[0]:
+                snames = [f"S{i+1}" for i in range(C_res.shape[0])]
             fig_c = go.Figure()
             for i in range(nc):
                 fig_c.add_trace(go.Bar(
@@ -1176,6 +1183,9 @@ with tab_rep:
         r2  = st.session_state["mcr_r2"]
         nc  = st.session_state["mcr_ncomp"]
         snames = st.session_state.get("spec_names", [f"S{i+1}" for i in range(C.shape[0])])
+        # Safety: pastikan panjang snames sesuai baris C
+        if len(snames) != C.shape[0]:
+            snames = [f"S{i+1}" for i in range(C.shape[0])]
 
         st.markdown(f'<p class="sec-hdr">{t("Export data","Export data")}</p>',
                     unsafe_allow_html=True)
